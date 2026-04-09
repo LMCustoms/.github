@@ -95,7 +95,7 @@ jobs:
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "New Release — ${{ github.repository }}"
-          to: alert@lmcustoms.cc
+          to: notifications@lmcustoms.cc
           from: GitHub Actions <noreply@lmcustoms.cc>
           body: |
             A new release has been published!

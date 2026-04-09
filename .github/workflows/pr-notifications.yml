@@ -5,7 +5,7 @@ on:
     inputs:
       to:
         type: string
-        default: "pr@lmcustoms.cc"
+        default: "notifications@lmcustoms.cc"
     secrets:
       SMTP_SERVER:
         required: false
