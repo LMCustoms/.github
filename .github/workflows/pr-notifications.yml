@@ -23,7 +23,6 @@ jobs:
 
     steps:
       - name: Send email
-        if: secrets.SMTP_SERVER != ''
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: ${{ secrets.SMTP_SERVER }}
