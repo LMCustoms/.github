@@ -32,7 +32,7 @@ jobs:
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "PR #${{ github.event.pull_request.number }} ${{ github.event.action }} — ${{ github.repository }}"
           to: ${{ inputs.to }}
-          from: LMCustoms PRs <github@lmcustoms.cc>
+          from: github@lmcustoms.cc
           body: |
             Pull Request: #${{ github.event.pull_request.number }}
             Title: ${{ github.event.pull_request.title }}
