@@ -1,11 +1,24 @@
-name: Release & Version
+name: "Semantic Release"
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - '.github/**'
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: "20"
+      notify:
+        type: boolean
+        default: true
+        description: "Send email notification on release"
+    secrets:
+      SMTP_SERVER:
+        required: false
+      SMTP_PORT:
+        required: false
+      SMTP_USERNAME:
+        required: false
+      SMTP_PASSWORD:
+        required: false
 
 jobs:
   release:
@@ -15,17 +28,16 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      
+          node-version: ${{ inputs.node-version }}
+
       - name: Install semantic-release
         run: |
           npm install -g \
@@ -34,22 +46,23 @@ jobs:
             @semantic-release/git@latest \
             @semantic-release/github@latest \
             conventional-changelog-conventionalcommits@latest
-      
-      - name: Create .releaserc
+
+      - name: Create default releaserc (if none exists)
         run: |
-          cat > .releaserc.json << 'RELEASERC'
+          if [ ! -f .releaserc.json ] && [ ! -f .releaserc ] && [ ! -f .releaserc.yml ] && [ ! -f .releaserc.yaml ] && [ ! -f release.config.js ] && [ ! -f release.config.cjs ]; then
+            cat > .releaserc.json << 'EOF'
           {
             "branches": ["main"],
             "plugins": [
               ["@semantic-release/commit-analyzer", {
                 "preset": "conventionalcommits",
                 "releaseRules": [
-                  {"type": "feat", "release": "minor"},
-                  {"type": "fix", "release": "patch"},
-                  {"type": "perf", "release": "patch"},
-                  {"type": "revert", "release": "patch"},
-                  {"type": "docs", "release": "patch"},
-                  {"breaking": true, "release": "major"}
+                  { "type": "feat", "release": "minor" },
+                  { "type": "fix", "release": "patch" },
+                  { "type": "perf", "release": "patch" },
+                  { "type": "revert", "release": "patch" },
+                  { "type": "docs", "release": "patch" },
+                  { "breaking": true, "release": "major" }
                 ]
               }],
               ["@semantic-release/release-notes-generator", {
@@ -58,35 +71,34 @@ jobs:
               ["@semantic-release/changelog", {
                 "changelogFile": "CHANGELOG.md"
               }],
-              ["@semantic-release/github", {
-                "assets": []
-              }],
+              ["@semantic-release/github"],
               ["@semantic-release/git", {
                 "assets": ["CHANGELOG.md", "package.json"],
                 "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
               }]
             ]
           }
-          RELEASERC
-      
+          EOF
+          fi
+
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
-      
+
       - name: Send release notification
-        if: success()
+        if: inputs.notify && success()
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: ${{ secrets.SMTP_SERVER }}
           server_port: ${{ secrets.SMTP_PORT }}
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "🚀 New Release - ${{ github.repository }}"
+          subject: "New Release — ${{ github.repository }}"
           to: alert@lmcustoms.cc
           from: GitHub Actions <noreply@lmcustoms.cc>
           body: |
             A new release has been published!
-            
+
             Repository: ${{ github.repository }}
             View releases: ${{ github.server_url }}/${{ github.repository }}/releases

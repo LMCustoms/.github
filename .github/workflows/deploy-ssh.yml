@@ -1,0 +1,30 @@
+name: "Deploy via SSH"
+
+on:
+  workflow_call:
+    inputs:
+      script:
+        type: string
+        required: true
+        description: "Shell commands to execute on the remote server"
+    secrets:
+      DEPLOY_HOST:
+        required: true
+      DEPLOY_USER:
+        required: true
+      DEPLOY_SSH_KEY:
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Execute deployment
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: ${{ inputs.script }}

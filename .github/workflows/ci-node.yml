@@ -1,0 +1,71 @@
+name: "CI — Node.js"
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: "20"
+      package-manager:
+        type: string
+        default: "npm"
+      working-directory:
+        type: string
+        default: "."
+      run-lint:
+        type: boolean
+        default: true
+      run-typecheck:
+        type: boolean
+        default: false
+      run-test:
+        type: boolean
+        default: true
+      run-build:
+        type: boolean
+        default: true
+
+jobs:
+  ci:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable corepack (pnpm/yarn)
+        if: inputs.package-manager != 'npm'
+        run: corepack enable
+        working-directory: .
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ inputs.package-manager }}
+
+      - name: Install dependencies
+        run: |
+          case "${{ inputs.package-manager }}" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --frozen-lockfile ;;
+            *)    npm ci ;;
+          esac
+
+      - name: Lint
+        if: inputs.run-lint
+        run: ${{ inputs.package-manager }} run lint
+
+      - name: Typecheck
+        if: inputs.run-typecheck
+        run: ${{ inputs.package-manager }} run typecheck
+
+      - name: Test
+        if: inputs.run-test
+        run: ${{ inputs.package-manager }} run test
+
+      - name: Build
+        if: inputs.run-build
+        run: ${{ inputs.package-manager }} run build

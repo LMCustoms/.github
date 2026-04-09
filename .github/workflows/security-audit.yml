@@ -1,0 +1,49 @@
+name: "Security Audit"
+
+on:
+  workflow_call:
+    inputs:
+      package-manager:
+        type: string
+        default: "npm"
+      node-version:
+        type: string
+        default: "20"
+      working-directory:
+        type: string
+        default: "."
+      audit-level:
+        type: string
+        default: "high"
+        description: "Minimum severity to fail on (low, moderate, high, critical)"
+
+  schedule:
+    - cron: "0 8 * * 1" # Every Monday at 08:00 UTC
+
+jobs:
+  audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory || '.' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable corepack (pnpm)
+        if: (inputs.package-manager || 'npm') == 'pnpm'
+        run: corepack enable
+        working-directory: .
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version || '20' }}
+
+      - name: Run audit
+        run: |
+          case "${{ inputs.package-manager || 'npm' }}" in
+            pnpm) pnpm audit --audit-level=${{ inputs.audit-level || 'high' }} ;;
+            yarn) yarn audit --level ${{ inputs.audit-level || 'high' }} ;;
+            *)    npm audit --audit-level=${{ inputs.audit-level || 'high' }} ;;
+          esac
