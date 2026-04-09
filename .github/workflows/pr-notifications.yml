@@ -5,16 +5,16 @@ on:
     inputs:
       to:
         type: string
-        default: "pr@lmcustoms.cc"
+        default: "notifications@lmcustoms.cc"
     secrets:
       SMTP_SERVER:
-        required: true
+        required: false
       SMTP_PORT:
-        required: true
+        required: false
       SMTP_USERNAME:
-        required: true
+        required: false
       SMTP_PASSWORD:
-        required: true
+        required: false
 
 jobs:
   notify:
@@ -23,6 +23,7 @@ jobs:
 
     steps:
       - name: Send email
+        if: secrets.SMTP_SERVER != ''
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: ${{ secrets.SMTP_SERVER }}
@@ -31,7 +32,7 @@ jobs:
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "PR #${{ github.event.pull_request.number }} ${{ github.event.action }} — ${{ github.repository }}"
           to: ${{ inputs.to }}
-          from: GitHub Actions <noreply@lmcustoms.cc>
+          from: LMCustoms PRs <pr@lmcustoms.cc>
           body: |
             Pull Request: #${{ github.event.pull_request.number }}
             Title: ${{ github.event.pull_request.title }}
