@@ -22,6 +22,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set action color
+        id: color
+        run: |
+          ACTION="${{ github.event.action }}"
+          case "$ACTION" in
+            opened|reopened)
+              echo "bg=#DBEAFE" >> "$GITHUB_OUTPUT"
+              echo "text=#1E40AF" >> "$GITHUB_OUTPUT"
+              ;;
+            closed)
+              if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
+                echo "bg=#D1FAE5" >> "$GITHUB_OUTPUT"
+                echo "text=#065F46" >> "$GITHUB_OUTPUT"
+              else
+                echo "bg=#FEE2E2" >> "$GITHUB_OUTPUT"
+                echo "text=#991B1B" >> "$GITHUB_OUTPUT"
+              fi
+              ;;
+            review_requested|submitted)
+              echo "bg=#EDE9FE" >> "$GITHUB_OUTPUT"
+              echo "text=#5B21B6" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "bg=#F1F5F9" >> "$GITHUB_OUTPUT"
+              echo "text=#334155" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Get action label
+        id: label
+        run: |
+          ACTION="${{ github.event.action }}"
+          MERGED="${{ github.event.pull_request.merged }}"
+          if [ "$ACTION" = "closed" ] && [ "$MERGED" = "true" ]; then
+            echo "text=Merged" >> "$GITHUB_OUTPUT"
+          else
+            LABEL="$(echo "$ACTION" | sed 's/_/ /g' | sed 's/\b\(.\)/\u\1/g')"
+            echo "text=$LABEL" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Send email
         uses: dawidd6/action-send-mail@v3
         with:
@@ -29,16 +69,58 @@ jobs:
           server_port: ${{ secrets.SMTP_PORT }}
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "PR #${{ github.event.pull_request.number }} ${{ github.event.action }} — ${{ github.repository }}"
+          subject: "PR #${{ github.event.pull_request.number }} ${{ steps.label.outputs.text }} — ${{ github.repository }}"
           to: ${{ inputs.to }}
           from: github@lmcustoms.cc
-          body: |
-            Pull Request: #${{ github.event.pull_request.number }}
-            Title: ${{ github.event.pull_request.title }}
-            Action: ${{ github.event.action }}
-            Author: ${{ github.event.pull_request.user.login }}
-            Repository: ${{ github.repository }}
+          content_type: text/html
+          html_body: |
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="UTF-8"></head>
+            <body style="margin:0;padding:0;background-color:#F1F5F9;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#F1F5F9;">
+                <tr><td align="center" style="padding:32px 16px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
 
-            ${{ github.event.pull_request.body }}
+                    <tr><td style="height:4px;background:linear-gradient(135deg,#6366F1,#3B82F6,#0EA5E9);"></td></tr>
 
-            View PR: ${{ github.event.pull_request.html_url }}
+                    <tr><td style="padding:28px 32px 20px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+                        <td><span style="font-size:20px;font-weight:800;color:#3B82F6;letter-spacing:-1px;">LM</span><span style="font-size:20px;font-weight:300;color:#334155;">Customs</span></td>
+                        <td align="right"><span style="display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;background-color:${{ steps.color.outputs.bg }};color:${{ steps.color.outputs.text }};">${{ steps.label.outputs.text }}</span></td>
+                      </tr></table>
+                    </td></tr>
+
+                    <tr><td style="padding:0 32px;"><div style="height:1px;background-color:#E2E8F0;"></div></td></tr>
+
+                    <tr><td style="padding:24px 32px;">
+                      <p style="margin:0 0 4px;font-size:13px;color:#64748B;font-weight:500;">${{ github.repository }}</p>
+                      <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0F172A;line-height:1.3;">${{ github.event.pull_request.title }}</h1>
+                      <p style="margin:0;font-size:14px;color:#64748B;"><span style="font-weight:600;color:#334155;">${{ github.event.pull_request.user.login }}</span> &middot; PR #${{ github.event.pull_request.number }}</p>
+                    </td></tr>
+
+                    <tr><td style="padding:0 32px 24px;">
+                      <div style="background-color:#F8FAFC;border-radius:8px;padding:16px 20px;border-left:3px solid #3B82F6;">
+                        <p style="margin:0;font-size:14px;color:#475569;line-height:1.6;">${{ github.event.pull_request.body || 'No description provided.' }}</p>
+                      </div>
+                    </td></tr>
+
+                    <tr><td style="padding:0 32px 28px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+                        <td style="border-radius:8px;background:linear-gradient(135deg,#3B82F6,#0EA5E9);">
+                          <a href="${{ github.event.pull_request.html_url }}" target="_blank" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">View Pull Request &#8594;</a>
+                        </td>
+                      </tr></table>
+                    </td></tr>
+
+                    <tr><td style="background-color:#0F172A;padding:20px 32px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+                        <td><span style="font-size:12px;color:#64748B;">Sent by </span><span style="font-size:12px;font-weight:700;color:#3B82F6;">LM</span><span style="font-size:12px;font-weight:300;color:#94A3B8;">Customs</span><span style="font-size:12px;color:#64748B;"> GitHub Workflows</span></td>
+                      </tr></table>
+                    </td></tr>
+
+                  </table>
+                </td></tr>
+              </table>
+            </body>
+            </html>
