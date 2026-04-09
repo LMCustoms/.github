@@ -1,59 +1,103 @@
 # LMCustoms Organization Configuration
 
-This repository contains organization-wide defaults, workflows, and documentation for all LMCustoms repositories.
+This repository contains organization-wide defaults, reusable workflows, and documentation for all LMCustoms repositories.
 
-## 📂 Structure
+## Structure
 
 ```
 .github/
-├── workflows/           # Reusable GitHub Actions workflows
-│   ├── ci.yml          # Lint, test, build pipeline
-│   ├── pr-notifications.yml  # Email notifications for PRs
-│   └── release.yml     # Semantic versioning & releases
+├── workflows/                    # Reusable GitHub Actions workflows
+│   ├── ci-node.yml              # Node.js CI (lint, typecheck, test, build)
+│   ├── docker-build-push.yml    # Docker build & push to GHCR
+│   ├── deploy-ssh.yml           # Deploy via SSH
+│   ├── pr-notifications.yml     # Email notifications for PRs
+│   ├── release-semantic.yml     # Semantic versioning & releases
+│   └── security-audit.yml       # Dependency vulnerability scanning
 ├── profile/
-│   └── README.md       # Organization profile (appears on org page)
-├── SECURITY.md         # Security policy
-├── CONTRIBUTING.md     # Contribution guidelines
-└── CODE_OF_CONDUCT.md  # Community standards
+│   └── README.md                # Organization profile (appears on org page)
+├── SECURITY.md
+├── CONTRIBUTING.md
+└── CODE_OF_CONDUCT.md
 ```
 
-## 🔧 Workflows
+## Reusable Workflows
 
-### CI Pipeline (`ci.yml`)
+All workflows use `workflow_call` and are called from individual repos like:
 
-Automatically runs on PRs and pushes to `main`/`develop`:
+```yaml
+jobs:
+  ci:
+    uses: LMCustoms/.github/.github/workflows/ci-node.yml@main
+    with:
+      node-version: "22"
+```
 
-- **Lint** — Code style checks
-- **Test** — Run test suites
-- **Build** — Compile/bundle projects
-- **Notify** — Send results to `alert@lmcustoms.cc`
+### `ci-node.yml` — Node.js CI
 
-Supports: Node.js, Rust, Python projects.
+| Input | Type | Default | Description |
+|-------|------|---------|-------------|
+| `node-version` | string | `"20"` | Node.js version |
+| `package-manager` | string | `"npm"` | `npm`, `pnpm`, or `yarn` |
+| `working-directory` | string | `"."` | Path to package root |
+| `run-lint` | boolean | `true` | Run lint step |
+| `run-typecheck` | boolean | `false` | Run typecheck step |
+| `run-test` | boolean | `true` | Run test step |
+| `run-build` | boolean | `true` | Run build step |
 
-### PR Notifications (`pr-notifications.yml`)
+### `docker-build-push.yml` — Docker Build & Push
 
-Sends email to `pr@lmcustoms.cc` when:
-- PR opened/reopened/closed
-- Review requested
-- Review submitted
+Builds and pushes to GitHub Container Registry with automatic tagging (SHA, branch, semver, latest).
 
-### Release Workflow (`release.yml`)
+| Input | Type | Default | Description |
+|-------|------|---------|-------------|
+| `image-name` | string | *required* | Image name (e.g. `lmcustoms/my-app`) |
+| `context` | string | `"."` | Docker build context |
+| `dockerfile` | string | `"Dockerfile"` | Path to Dockerfile |
+| `push` | boolean | `true` | Push after building |
 
-Semantic versioning based on [Conventional Commits](https://www.conventionalcommits.org/):
+### `deploy-ssh.yml` — Deploy via SSH
 
-- `feat:` → Minor version bump
-- `fix:` → Patch version bump
-- `BREAKING CHANGE:` → Major version bump
+| Input | Type | Default | Description |
+|-------|------|---------|-------------|
+| `script` | string | *required* | Shell commands to run on the server |
 
-Automatically:
-- Tags releases
-- Generates changelogs
-- Creates GitHub releases
-- Notifies `alert@lmcustoms.cc`
+Requires secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`
 
-## 📧 Email Setup
+### `pr-notifications.yml` — PR Email Notifications
 
-Workflows require SMTP secrets:
+| Input | Type | Default | Description |
+|-------|------|---------|-------------|
+| `to` | string | `"pr@lmcustoms.cc"` | Recipient email |
+
+Requires secrets: `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`
+
+### `release-semantic.yml` — Semantic Release
+
+Conventional Commits-based versioning: `feat:` = minor, `fix:` = patch, `BREAKING CHANGE:` = major.
+Generates changelogs, GitHub releases, and optional email notifications.
+
+Repos can override by providing their own `.releaserc.json` or `release.config.js`.
+
+| Input | Type | Default | Description |
+|-------|------|---------|-------------|
+| `node-version` | string | `"20"` | Node.js version |
+| `notify` | boolean | `true` | Send email on release |
+
+### `security-audit.yml` — Dependency Audit
+
+Runs weekly (Monday 08:00 UTC) and on-demand via `workflow_call`.
+
+| Input | Type | Default | Description |
+|-------|------|---------|-------------|
+| `package-manager` | string | `"npm"` | `npm`, `pnpm`, or `yarn` |
+| `node-version` | string | `"20"` | Node.js version |
+| `audit-level` | string | `"high"` | Minimum severity to fail |
+
+## Secrets
+
+### SMTP (org-level)
+
+Required for PR notifications and release emails:
 
 ```
 SMTP_SERVER
@@ -62,9 +106,48 @@ SMTP_USERNAME
 SMTP_PASSWORD
 ```
 
-Add these to **Organization Secrets** (Settings → Secrets and variables → Actions).
+### Deployment (per-repo)
 
-## 🎯 Team Structure
+Required for SSH deployments:
+
+```
+DEPLOY_HOST
+DEPLOY_USER
+DEPLOY_SSH_KEY
+```
+
+Add org-wide secrets at **Settings > Secrets and variables > Actions**.
+
+## Adding Workflows to a New Repo
+
+Create thin caller workflows in your repo's `.github/workflows/`:
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    uses: LMCustoms/.github/.github/workflows/ci-node.yml@main
+    with:
+      node-version: "22"
+      run-typecheck: true
+```
+
+Use `secrets: inherit` to pass org-level secrets:
+
+```yaml
+jobs:
+  notify:
+    uses: LMCustoms/.github/.github/workflows/pr-notifications.yml@main
+    secrets: inherit
+```
+
+## Team Structure
 
 | Team | Permissions | Purpose |
 |------|------------|---------|
@@ -73,39 +156,16 @@ Add these to **Organization Secrets** (Settings → Secrets and variables → Ac
 | **Developers** | Write | Push branches, open PRs |
 | **Bots** | Write | CI/CD automation |
 
-## 🔒 Branch Protection
+## Branch Protection
 
 All repos enforce:
-- ✅ Require PR before merge
-- ✅ Require 1+ approval
-- ✅ Require CI passing
-- ❌ No force push
-- ❌ No branch deletion
-- ✅ Require conversation resolution
-
-## 📋 Repository Defaults
-
-New repos automatically inherit:
-- Issue templates (bug, feature, question)
-- PR template (checklist)
-- Security policy
-- Contributing guide
-- Code of Conduct
-
-## 🚀 Creating New Repos
-
-1. Create repo via GitHub
-2. Enable **Dependabot** alerts
-3. Add repo to teams (Owners=admin, Maintainers=maintain, Developers=write)
-4. Apply branch protection to `main`
-5. Push initial commit following conventional commits
-
-Workflows will automatically activate on first PR/push.
-
-## 📖 Documentation
-
-See `docs` repo for comprehensive project documentation.
+- Require PR before merge
+- Require 1+ approval
+- Require CI passing
+- No force push
+- No branch deletion
+- Require conversation resolution
 
 ---
 
-**© 2026 LMCustoms. All rights reserved.**
+**LMCustoms 2026**

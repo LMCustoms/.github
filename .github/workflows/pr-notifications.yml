@@ -1,15 +1,26 @@
-name: PR Notifications
+name: "PR Notifications"
 
 on:
-  pull_request:
-    types: [opened, reopened, closed, review_requested]
-  pull_request_review:
-    types: [submitted]
+  workflow_call:
+    inputs:
+      to:
+        type: string
+        default: "pr@lmcustoms.cc"
+    secrets:
+      SMTP_SERVER:
+        required: true
+      SMTP_PORT:
+        required: true
+      SMTP_USERNAME:
+        required: true
+      SMTP_PASSWORD:
+        required: true
 
 jobs:
   notify:
     name: Send PR Notification
     runs-on: ubuntu-latest
+
     steps:
       - name: Send email
         uses: dawidd6/action-send-mail@v3
@@ -18,8 +29,8 @@ jobs:
           server_port: ${{ secrets.SMTP_PORT }}
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "PR #${{ github.event.pull_request.number }} ${{ github.event.action }} - ${{ github.repository }}"
-          to: pr@lmcustoms.cc
+          subject: "PR #${{ github.event.pull_request.number }} ${{ github.event.action }} — ${{ github.repository }}"
+          to: ${{ inputs.to }}
           from: GitHub Actions <noreply@lmcustoms.cc>
           body: |
             Pull Request: #${{ github.event.pull_request.number }}
@@ -27,7 +38,7 @@ jobs:
             Action: ${{ github.event.action }}
             Author: ${{ github.event.pull_request.user.login }}
             Repository: ${{ github.repository }}
-            
+
             ${{ github.event.pull_request.body }}
-            
+
             View PR: ${{ github.event.pull_request.html_url }}
