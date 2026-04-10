@@ -14,6 +14,9 @@ on:
         required: true
       DEPLOY_SSH_KEY:
         required: true
+      GHCR_TOKEN:
+        required: false
+        description: "GitHub Container Registry token for private image pulls"
 
 jobs:
   deploy:
@@ -27,4 +30,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: GHCR_TOKEN
           script: ${{ inputs.script }}
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
