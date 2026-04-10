@@ -1,0 +1,45 @@
+name: "Notify Project Registry"
+
+on:
+  workflow_call:
+    inputs:
+      registry-url:
+        type: string
+        default: "https://registry.lmcustoms.cc"
+        description: "Project Registry API base URL"
+    secrets:
+      REGISTRY_API_TOKEN:
+        required: true
+
+jobs:
+  notify:
+    name: Notify Registry
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Extract version from release tag
+        id: version
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          # Strip leading 'v' if present
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VERSION for ${{ github.repository }}"
+
+      - name: Notify project registry
+        run: |
+          HTTP_CODE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST "${{ inputs.registry-url }}/webhook/release" \
+            -H "Authorization: Bearer ${{ secrets.REGISTRY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"repository\": \"${{ github.repository }}\", \"version\": \"${{ steps.version.outputs.version }}\"}")
+
+          echo "Registry response (HTTP $HTTP_CODE):"
+          cat /tmp/response.json
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Registry updated successfully"
+          else
+            echo "Warning: Registry update failed (HTTP $HTTP_CODE) — non-blocking"
+          fi
