@@ -12,7 +12,6 @@ jobs:
   create-issue:
     name: Create Failure Issue
     runs-on: ubuntu-latest
-    if: failure()
     permissions:
       issues: write
 
