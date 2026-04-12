@@ -28,7 +28,7 @@ jobs:
           script: |
             echo "Triggering Watchtower update check for ${{ github.repository }}..."
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-              -X POST "http://127.0.0.1:8080/v1/update" \
+              -X POST "http://127.0.0.1:8081/v1/update" \
               -H "Authorization: Bearer ${{ secrets.WATCHTOWER_HTTP_API_TOKEN }}")
             if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
               echo "Watchtower update triggered (HTTP $HTTP_CODE)"
