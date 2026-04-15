@@ -16,7 +16,7 @@ jobs:
   notify:
     name: Trigger Watchtower Update
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    if: true
 
     steps:
       - name: Trigger Watchtower via SSH
